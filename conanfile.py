@@ -6,43 +6,47 @@ import os
 
 
 class LibnameConan(ConanFile):
-    name = "libname"
-    version = "0.0.0"
-    url = "https://github.com/bincrafters/conan-libname"
-    description = "Keep it short"
-    license = "https://github.com/someauthor/somelib/blob/master/LICENSES"
+    name = "cpr"
+    version = "1.3.0"
+    url = "https://github.com/whoshuu/cpr"
+    description = "C++ Requests: Curl for People, a spiritual port of Python Requests"
+    license = "https://raw.githubusercontent.com/whoshuu/cpr/master/LICENSE"
     exports_sources = ["CMakeLists.txt", "LICENSE"]
     settings = "os", "arch", "compiler", "build_type"
     options = {"shared": [True, False]}
     default_options = "shared=False"
-    #use static org/channel for libs in conan-center
-    #use dynamic org/channel for libs in bincrafters
-    requires = "OpenSSL/1.0.2l@conan/stable", \
-        "zlib/1.2.11@conan/stable", \
-        "websocketpp/0.7.0@%s/%s" % (self.user, self.channel)
+    requires = "libcurl/7.52.1@bincrafters/stable"
+    generators = "cmake"
 
     def source(self):
-        source_url = "https://github.com/Microsoft/cpprestsdk"
-        tools.get("{0}/archive/v{1}.tar.gz".format(source_url, self.version))
+        source_url = "https://github.com/whoshuu/cpr"
+        tools.get("{0}/archive/{1}.tar.gz".format(source_url, self.version))
         extracted_dir = self.name + "-" + self.version
         os.rename(extracted_dir, "sources")
-        #Rename to "sources" is a convention to simplify later steps
 
     def build(self):
         cmake = CMake(self)
-        cmake.definitions["BUILD_TESTS"] = False # example
-        cmake.configure(source_dir="sources")
+
+        tools.replace_in_file(
+            'sources/cpr/CMakeLists.txt',
+            '${CURL_LIBRARIES})',
+            '${CONAN_LIBS})')
+
+        cmake.definitions["USE_SYSTEM_CURL"] = True
+        cmake.definitions["BUILD_CPR_TESTS"] = False
+        cmake.definitions["CMAKE_BUILD_SHARED_LIBS"] = self.options.shared
+
+        cmake.configure()
         cmake.build()
 
     def package(self):
-        with tools.chdir("sources"):
-            self.copy(pattern="LICENSE")
-            self.copy(pattern="*", dst="include", src="include")
-            self.copy(pattern="*.dll", dst="bin", src="bin", keep_path=False)
-            self.copy(pattern="*.lib", dst="lib", src="lib", keep_path=False)
-            self.copy(pattern="*.a", dst="lib", src="lib", keep_path=False)
-            self.copy(pattern="*.so*", dst="lib", src="lib", keep_path=False)
-            self.copy(pattern="*.dylib", dst="lib", src="lib", keep_path=False)
+        self.copy(pattern="LICENSE", src="sources")
+        self.copy(pattern="*", dst="include", src="sources/include")
+        self.copy(pattern="*.lib", dst="lib", src="lib", keep_path=False)
+        self.copy(pattern="*.a", dst="lib", src="lib", keep_path=False)
+        self.copy(pattern="*.so*", dst="lib", src="lib", keep_path=False)
+        self.copy(pattern="*.dylib", dst="lib", src="lib", keep_path=False)
+        self.copy(pattern="*.dll", dst="bin", src="bin", keep_path=False)
 
     def package_info(self):
         self.cpp_info.libs = tools.collect_libs(self)
